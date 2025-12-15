@@ -2,12 +2,18 @@
 ## CCT
 ## 2025-12-12
 
+rm(list = ls())
+
 require(tidyverse)
 require(terra)
+require(tidyterra)
 require(sf)
 require(osmextract)
 require(patchwork)
 require(scico)
+require(here)
+
+source(here("code", "functions.R"))
 
 ###############################################################################
 ## GET THAILAND OSM DATA AND FILTER FOR RELEVANT TAGS
@@ -20,11 +26,8 @@ thailand_osm <- oe_get(
   quiet = FALSE
 )
 
-acommodation_tags <- c(
-  "hotel", "hostel", "guest_house", "motel", "resort",
-  "apartment", "chalet", "camp_site"
-)
-
+accommodation_tags <- c("hotel", "hostel", "guest_house", "motel", "resort",
+  "apartment", "chalet", "camp_site")
 tourism_tags <- c("attraction", "museum", "gallery", "theme_park", "zoo",
                   "aquarium", "viewpoint", "artwork", "information")
 historic_tags <- c("monument", "memorial", "castle", "ruins", "archaeological_site",
@@ -81,13 +84,13 @@ hotel_count <- subst(hotel_count, NA, 0)
 #summary(hotel_count)
 
 # Mask to country boundary
-hotel_count <- mask(hotel_count, thailand)
+hotel_count <- mask(hotel_count, country)
 #plot(hotel_count)
 
 # Attractions
 attractions_count <- rasterize(attractions_vect, th_aegypti_2022, fun = "count")
 attractions_count <- subst(attractions_count, NA, 0)
-attractions_count <- mask(attractions_count, thailand)
+attractions_count <- mask(attractions_count, country)
 #plot(attractions_count)
 
 # Normalize counts
@@ -109,7 +112,7 @@ attract_index2 <- hotel_norm * attractions_norm # multiplicative index
 ###############################################################################
 # hotel index
 hotel_plot <- ggplot() +
-  geom_sf(data = thailand) +
+  geom_sf(data = country) +
   geom_spatraster(data = hotel_norm) +
   #scale_fill_scico(palette= "acton", direction = 1, begin = 0) +
   scale_fill_viridis_c(name = "Hotel index",
@@ -121,7 +124,7 @@ hotel_plot
 
 # attraction index
 attraction_plot <- ggplot() +
-  geom_sf(data = thailand) +
+  geom_sf(data = country) +
   geom_spatraster(data = attractions_norm) +
   scale_fill_viridis_c(name = "Attractions index",
                        option = "plasma",
@@ -131,22 +134,22 @@ attraction_plot <- ggplot() +
 
 # attractiveness index - additive 
 attract_index_plot <- ggplot() +
-  geom_sf(data = thailand) +
+  geom_sf(data = country) +
   geom_spatraster(data = attract_index) +
   scale_fill_viridis_c(name = "Attractiveness index",
                        option = "plasma",
                        na.value = "transparent") +
-  labs(title = "Attractiveness index per cell\n(normalised)") +
+  labs(title = "Attractiveness index per cell\n(additive, normalised)") +
   theme_minimal()
 
 # attractiveness index - multiplicative 
 attract_index_plot2 <- ggplot() +
-  geom_sf(data = thailand) +
+  geom_sf(data = country) +
   geom_spatraster(data = attract_index2) +
   scale_fill_viridis_c(name = "Attractiveness index",
                        option = "plasma",
                        na.value = "transparent") +
-  labs(title = "Attractiveness index per cell\n(normalised)") +
+  labs(title = "Attractiveness index per cell\n(multiplicative, normalised)") +
   theme_minimal()
 
 hotel_plot + attraction_plot + attract_index_plot
