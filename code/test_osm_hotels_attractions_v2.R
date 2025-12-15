@@ -64,7 +64,7 @@ plot(st_geometry(country))
 plot(st_geometry(hotels), add = TRUE, col = "red", pch = 20)
 
 ###############################################################################
-## IMPORT VECTOR SUITABILITY DATA
+## IMPORT AE. AEGYPTI DENGUE TRANSMISSION POTENTIAL DATA
 ###############################################################################
 # Load vector suitability data
 #th_aegypti <- rast(here("data/Thailand", "Thailand_indexP_typical_year_mean_rasters.tif"))
@@ -139,7 +139,7 @@ attract_index_plot <- ggplot() +
   scale_fill_viridis_c(name = "Attractiveness index",
                        option = "plasma",
                        na.value = "transparent") +
-  labs(title = "Attractiveness index per cell\n(additive, normalised)") +
+  labs(title = "Normalised attractiveness index\n(weighted average of hotels and attractions)") +
   theme_minimal()
 
 # attractiveness index - multiplicative 
@@ -149,7 +149,7 @@ attract_index_plot2 <- ggplot() +
   scale_fill_viridis_c(name = "Attractiveness index",
                        option = "plasma",
                        na.value = "transparent") +
-  labs(title = "Attractiveness index per cell\n(multiplicative, normalised)") +
+  labs(title = "Normalised attractiveness index\n(hotels * attractions)") +
   theme_minimal()
 
 hotel_plot + attraction_plot + attract_index_plot
@@ -157,13 +157,13 @@ hotel_plot + attraction_plot + attract_index_plot2
 
 attract_index_plot + attract_index_plot2
 
-# Ae.aegypti suitability
+# Ae.aegypti dengue transmission potential
 aedes_plot <- ggplot() +
   geom_spatraster(data = th_aegypti_2022) +
-  scale_fill_viridis_c(name = "Ae. aegypti\nsuitability", 
+  scale_fill_viridis_c(name = "Ae. aegypti transmission potential\nfor dengue", 
                        option = "plasma",
                        na.value = "transparent") +
-  labs(title = "Ae. aegypti suitability") +
+  labs(title = "Index P") +
   theme_minimal()
 
 aedes_plot + attract_index_plot
