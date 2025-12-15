@@ -10,20 +10,126 @@ library(sf)
 library(here)
 library(tidyverse)
 library(tidyterra)
+library(terra)
+library(rnaturalearth)
+
+source(here("code", "functions.R"))
 
 ###############################################################################
-## EXTRACT HOTEL AND ATTRACTIONS DATA FROM OPEN STREET MAP
+## DEFINE AREA TO SEARCH
 ###############################################################################
-# Define your area of interest (bounding box)
-# Example: Thailand
-bbox <- getbb("Thailand")
+# Country boundary from rnaturalearth
+thailand <- ne_countries(country = "Thailand", returnclass = "sf")
+
+###############################################################################
+## DEFINE TAGS TO EXTRACT ACCOMMODATION AND ATTRACTIONS LOCATIONS FROM OPEN STREET MAP
+###############################################################################
+# Vector of tags for accommodation
+accommodation_tags <- list(
+  list(key = "tourism", value = c("hotel", "hostel", "guest_house", "motel", "resort",
+                                  "apartment", "chalet", "camp_site"))
+)
+
+# List of tags for different groups of attractions
+attractions_tags <- list(
+  list(key = "tourism", value = c("attraction", "museum", "gallery", "theme_park", "zoo",
+                                  "aquarium", "viewpoint", "artwork", "information")),
+  list(key = "historic", value = c("monument", "memorial", "castle", "ruins", "archaeological_site",
+                                   "battlefield", "fort", "manor", "palace")),
+  list(key = "leisure", value = c("park", "nature_reserve", "beach_resort", "water_park",
+                                  "sports_centre", "stadium")),
+  list(key = "natural", value = c("beach", "waterfall", "peak"))
+)
+
+#############################################################################
+## RUN QUERIES ON OSM API
+###############################################################################
+# Get accommodations
+all_hotels <- query_osm_grid_multi(
+  bbox_or_sf = getbb("Thailand"),
+  features_list = accommodation_tags,
+  grid_size = 5,
+  timeout = 60,
+  keep_columns = c("osm_id", "name", "geometry")
+)
+
+# Get attractions
+# Query all POIs
+all_poi <- query_osm_grid_multi(
+  bbox_or_sf = getbb("Thailand"),
+  features_list = attractions_tags,
+  grid_size = 5,
+  timeout = 60,
+  keep_columns = c("osm_id", "name", "geometry")
+)
+
+# count of records for each feature type
+table(all_poi$feature_key)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Query for accommodation
+hotels <- query_osm_grid(
+  bbox_or_sf = thailand,
+  key = "tourism",
+  value = accommodation_tags,
+  grid_size = 5,
+  timeout = 60
+)
+
+
 
 # Query for tourist attractions
 attractions <- opq(bbox) %>%
-  add_osm_feature(key = "tourism", value = c("attraction", "museum", 
-                                             "viewpoint", "artwork",
-                                             "gallery", "zoo", "theme_park")) %>%
+  add_osm_feature(key = "tourism", value = c("attraction", "museum", "gallery", "theme_park", "zoo",
+                                             "aquarium", "viewpoint", "artwork", "information")) %>%
   osmdata_sf()
+
+# Query 1: Historic sites (key = "historic")
+historic <- opq(bbox) %>%
+  add_osm_feature(key = "historic", 
+                  value = c("monument", "memorial", "castle", "ruins", "archaeological_site",
+                  "battlefield", "fort", "manor", "palace") %>%
+  osmdata_sf()
+
+# Query 2: Leisure (key = "leisure")
+nature_leisure <- opq(bbox) %>%
+  add_osm_feature(key = "leisure", 
+                  value =   "park", "nature_reserve", "beach_resort", "water_park",
+                  "sports_centre", "stadium") %>%
+  osmdata_sf()
+
+# Query 3: Tourism tags (key = "tourism")
+tourism <- opq(bbox) %>%
+  add_osm_feature(key = "tourism", 
+                  value = tourism_tags) %>%
+  osmdata_sf()
+
+# Combine all points
+attractions <- rbind(
+  historic$osm_points[, c("osm_id", "name", "geometry")],
+  nature_leisure$osm_points[, c("osm_id", "name", "geometry")],
+  tourism$osm_points[, c("osm_id", "name", "geometry")]
+)
+
+# Remove duplicates (same feature might have multiple tags)
+attractions <- attractions[!duplicated(all_attractions$osm_id), ]
+
 
 # Extract points and polygons
 attractions_points <- attractions$osm_points
@@ -40,31 +146,42 @@ hotels_points <- hotels$osm_points
 hotels_polygons <- hotels$osm_polygons
 
 # If you have polygons, convert to centroids
+if(!is.null(attractions_polygons)) {
+  attractions_centroids <- st_centroid(attractions_polygons)
+  attractions_all <- rbind(attractions_points[,c("osm_id", "name", "geometry")], 
+                      attractions_centroids[,c("osm_id", "name", "geometry")])
+}
+
 if(!is.null(hotels_polygons)) {
   hotels_centroids <- st_centroid(hotels_polygons)
   hotels_all <- rbind(hotels_points[,c("osm_id", "name", "geometry")], 
                       hotels_centroids[,c("osm_id", "name", "geometry")])
 }
 
+
 # Save as shapefile or GeoPackage
-st_write(attractions_points, here("data", "attractions.gpkg"), delete_dsn = TRUE)
-st_write(hotels_points, here("data", "hotels.gpkg"), delete_dsn = TRUE)
+st_write(attractions_all, here("data", "attractions.gpkg"), delete_dsn = TRUE)
+st_write(hotels_all, here("data", "hotels.gpkg"), delete_dsn = TRUE)
 
 # Convert to spatial points for raster operations
-library(terra)
-hotels_vect <- vect(hotels_points)
-attractions_vect <- vect(attractions_points)
+hotels_vect <- vect(hotels_all)
+attractions_vect <- vect(attractions_all)
+
+# Intersect with Thailand country boundary
+country_vect <- vect(country)
+hotels_vect <- intersect(country_vect, hotels_vect)
+attractions_vect <- intersect(country_vect, attractions_vect)
 
 ###############################################################################
 ## PLOT HOTEL AND ATTRACTION LOCATIONS
 ###############################################################################
 # Simple plot
-plot(st_geometry(hotels_points))
+plot(st_geometry(hotels_all))
 
 # Add country boundary for context
 country <- st_as_sf(rnaturalearth::ne_countries(country = "Thailand", returnclass = "sf"))
 plot(st_geometry(country))
-plot(st_geometry(hotels_points), add = TRUE, col = "red", pch = 20)
+plot(st_geometry(hotels_all), add = TRUE, col = "red", pch = 20)
 
 ###############################################################################
 ## IMPORT VECTOR SUITABILITY DATA
@@ -190,6 +307,7 @@ attractionsXhotels_norm <- (attractionsXhotels - global(attractionsXhotels, "min
      global(attractionsXhotels, "min", na.rm = TRUE)[[1]])
 
 attrXhot_plot <- ggplot() +
+  geom_sf(data = country) +
   geom_spatraster(data = attractionsXhotels_norm) +
   scale_fill_viridis_c(name = "Attraction index",
                        option = "plasma",
