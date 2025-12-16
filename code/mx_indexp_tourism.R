@@ -16,33 +16,33 @@ require(here)
 source(here("code", "functions.R"))
 
 ###############################################################################
-## GET THAILAND OSM DATA AND FILTER FOR RELEVANT TAGS
+## GET OSM DATA AND FILTER FOR RELEVANT TAGS
 ###############################################################################
-# Download Thailand OSM data (one-time download, then cached)
-thailand_osm <- oe_get(
-  place = "Thailand",
+# Download OSM data (one-time download, then cached)
+country_osm <- oe_get(
+  place = "Mexico",
   layer = "points",
   extra_tags = c("tourism", "historic", "leisure", "natural", "name"),
   quiet = FALSE
 )
 
 accommodation_tags <- c("hotel", "hostel", "guest_house", "motel", "resort",
-  "apartment", "chalet", "camp_site")
+                        "apartment", "chalet", "camp_site")
 tourism_tags <- c("attraction", "museum", "gallery", "theme_park", "zoo",
                   "aquarium", "viewpoint", "artwork", "information")
 historic_tags <- c("monument", "memorial", "castle", "ruins", "archaeological_site",
-                  "battlefield", "fort", "manor", "palace")
+                   "battlefield", "fort", "manor", "palace")
 leisure_tags <- c("park", "nature_reserve", "beach_resort", "water_park",
                   "sports_centre", "stadium")
 natural_tags <- c("beach", "waterfall", "peak")
 
 # filter accommodation
-hotels <- thailand_osm %>%
+hotels <- country_osm %>%
   filter(tourism %in% accommodation_tags) %>%
   select(osm_id, name, tourism, geometry)
 
 # filter attractions
-attractions <- thailand_osm |> 
+attractions <- country_osm |> 
   filter(tourism %in% tourism_tags |
            historic %in% historic_tags |
            leisure %in% leisure_tags |
@@ -59,7 +59,7 @@ attractions_vect <- vect(attractions)
 plot(st_geometry(hotels))
 
 # Add country boundary for context
-country <- st_as_sf(rnaturalearth::ne_countries(country = "Thailand", returnclass = "sf"))
+country <- st_as_sf(rnaturalearth::ne_countries(country = "Mexico", returnclass = "sf"))
 plot(st_geometry(country))
 plot(st_geometry(hotels), add = TRUE, col = "red", pch = 20)
 
@@ -67,19 +67,19 @@ plot(st_geometry(hotels), add = TRUE, col = "red", pch = 20)
 ## IMPORT AE. AEGYPTI DENGUE TRANSMISSION POTENTIAL DATA
 ###############################################################################
 # Load vector suitability data
-#th_aegypti <- rast(here("data/Thailand", "Thailand_indexP_typical_year_mean_rasters.tif"))
-th_aegypti <- rast(here("data/Thailand", "Thailand_indexP_yearly_mean_rasters.tif"))
+#mx_aegypti <- rast(here("data/Thailand", "Thailand_indexP_typical_year_mean_rasters.tif"))
+mx_aegypti <- rast(here("data/Mexico", "Mexico_indexP_yearly_mean_rasters.tif"))
 
 # Extract 2022 layer
-th_aegypti_2022 <- th_aegypti$X2022
-plot(th_aegypti_2022)
+mx_aegypti_2022 <- mx_aegypti$X2022
+plot(mx_aegypti_2022)
 
 ###############################################################################
 ## INTERSECT HOTEL/ATTRACTIONS DATA AND COUNT
 ###############################################################################
 # Count hotels and attractions per grid cell
 # Count hotels per grid cell
-hotel_count <- rasterize(hotels_vect, th_aegypti_2022, fun = "count")
+hotel_count <- rasterize(hotels_vect, mx_aegypti_2022, fun = "count")
 hotel_count <- subst(hotel_count, NA, 0)
 #summary(hotel_count)
 
@@ -88,7 +88,7 @@ hotel_count <- mask(hotel_count, country)
 #plot(hotel_count)
 
 # Attractions
-attractions_count <- rasterize(attractions_vect, th_aegypti_2022, fun = "count")
+attractions_count <- rasterize(attractions_vect, mx_aegypti_2022, fun = "count")
 attractions_count <- subst(attractions_count, NA, 0)
 attractions_count <- mask(attractions_count, country)
 #plot(attractions_count)
@@ -116,8 +116,8 @@ hotel_plot <- ggplot() +
   geom_spatraster(data = hotel_norm) +
   #scale_fill_scico(palette= "acton", direction = 1, begin = 0) +
   scale_fill_viridis_c(name = "Hotel index",
-                      option = "plasma",
-                      na.value = "transparent") +
+                       option = "plasma",
+                       na.value = "transparent") +
   labs(title = "Hotels per cell\n(normalised)") +
   theme_minimal()
 hotel_plot
@@ -131,6 +131,7 @@ attraction_plot <- ggplot() +
                        na.value = "transparent") +
   labs(title = "Attractions per cell\n(normalised)") +
   theme_minimal()
+attraction_plot
 
 # attractiveness index - additive 
 attract_index_plot <- ggplot() +
@@ -159,7 +160,7 @@ attract_index_plot + attract_index_plot2
 
 # Ae.aegypti dengue transmission potential
 aedes_plot <- ggplot() +
-  geom_spatraster(data = th_aegypti_2022) +
+  geom_spatraster(data = mx_aegypti_2022) +
   scale_fill_viridis_c(name = "Ae. aegypti transmission potential\nfor dengue", 
                        option = "plasma",
                        na.value = "transparent") +
@@ -168,4 +169,4 @@ aedes_plot <- ggplot() +
 
 aedes_plot + attract_index_plot
 
-ggsave(here("plots", "th_den_indexp_tourism.png"), device = "png", width = 16, height = 9, dpi = 300)
+ggsave(here("plots", "mx_den_indexp_tourism.png"), device = "png", width = 16, height = 9, dpi = 300)
