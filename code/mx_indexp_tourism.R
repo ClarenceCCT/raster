@@ -107,6 +107,10 @@ attraction_wt <- 0.5
 attract_index <- hotel_wt * hotel_norm + attraction_wt * attractions_norm # additive index
 attract_index2 <- hotel_norm * attractions_norm # multiplicative index
 
+# Get cell values with coordinates
+#df <- as.data.frame(hotel_count, xy = TRUE)
+#head(df)
+
 ###############################################################################
 ## PLOT MAPS
 ###############################################################################
