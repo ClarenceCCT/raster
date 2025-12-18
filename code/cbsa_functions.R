@@ -24,6 +24,27 @@ get_cc_prop <- function(...) { #can be a named vector or user-defined country na
 }
 
 ###############################################################################
+## GET DATAFRAME OF COUNTS AND PERCENTAGES BY MONTH FOR SELECT COUNTRIES
+###############################################################################
+
+get_cc_prop_monthly <- function(...) { #can be a named vector or user-defined country names
+  
+  require(tidyverse)
+  
+  countries <- c(...)
+  countries <- paste(countries, collapse = "|")
+  
+  d <- readRDS("W:/DCAP_PACD/Group/RAD_DER/travel_data/cbsa/cbsa_cc_prop_by_country_monthly.rds")
+  
+  d <- d |> 
+    filter(str_detect(country, countries)) |> 
+    arrange(country, year)
+  
+  return(d)
+  
+}
+
+###############################################################################
 ## PLOT COUNTS AND PERCENTAGES BY YEAR FOR SELECT COUNTRIES
 ###############################################################################
 

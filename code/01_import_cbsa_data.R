@@ -31,7 +31,7 @@ cbsa_ccfn <- cbsa |>
   group_by(year = wk_start_yr, country = embark_country, status = citizenship_country) |> 
   summarise(npass = sum(npass)) |> 
   ungroup() |> 
-  pivot_wider(id_cols = c(country, year), names_from = "status", values_from = npass) |> 
+  pivot_wider(id_cols = c(country, year), names_from = "status", values_from = "npass") |> 
   rename(cc = "CA - Canada", fn = "FN - Foreign National") |> 
   tidyr::replace_na(list(cc = 0, fn = 0)) |> 
   mutate(
@@ -48,11 +48,20 @@ cbsa_ccfn_monthly <- cbsa |>
   mutate(
     month_start = floor_date(date, "month"),  # Extract month
     month = month(month_start), # Numerical month
+    year = as.integer(str_sub(as.character(month_start), 1, 4)), # extract year from month start date
     daily_n = npass / 7 # Allocate daily proportion
   ) |> 
   # Aggregate to monthly
-  group_by(year = wk_start_yr, country = embark_country, month, month_start, status = citizenship_country) |> 
-  summarise(npass = as.integer(round(sum(daily_n), 0))) 
+  group_by(year, country = embark_country, month, month_start, status = citizenship_country) |> 
+  summarise(npass = as.integer(round(sum(daily_n), 0))) |> 
+  ungroup() |> 
+  pivot_wider(id_cols = c(country, year, month, month_start), names_from = "status", values_from = "npass") |> 
+  rename(cc = "CA - Canada", fn = "FN - Foreign National") |> 
+  tidyr::replace_na(list(cc = 0, fn = 0)) |> 
+  mutate(
+    total = cc + fn,
+    cc_p = cc / total
+  ) 
 
 ###############################################################################
 ## SAVE

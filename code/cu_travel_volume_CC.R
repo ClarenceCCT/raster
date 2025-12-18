@@ -118,6 +118,102 @@ aedes_plot <- ggplot() +
 
 aedes_plot + cuba_travel_plot
 
+###############################################################################
+## CALCULATE MONTHLY TRAVEL RASTERS
+###############################################################################
+## Extract monthly data from CBSA
+cuba_cc_monthly <- get_cc_prop_monthly("Cuba")
+
+## Create vector of monthly travel volume
+cuba_2024_monthly <- cuba_cc_monthly$cc[which(cuba_cc_monthly$year == 2024)]
+
+## Create monthly raster layers
+cuba_travel_monthly <- map(cuba_2024_monthly, ~cuba_p * .x) |> 
+  rast()
+names(cuba_travel_monthly) <- paste0("X", 1:12)
+
+## Replace 0 with NA
+#cuba_travel_monthly <- subst(cuba_travel_monthly, 0, NA)
+
+cuba_travel_monthly_plot <- ggplot() +
+  geom_spatraster(data = cuba_travel_monthly) +
+  geom_sf(data = cuba, fill = NA, col = "black") +
+  facet_wrap(~lyr) +
+  scale_fill_viridis_c(name = "Estimated travel volume (CC)",
+                       #option = "plasma",
+                       na.value = "transparent",
+                       limits = c(0, 15000)) +
+  labs(title = "Travellers per cell\n(2024)") +
+  theme_minimal()
+
+cuba_travel_monthly_plot
+
+## resample to same dimensions
+cuba_travel_monthly <- resample(cuba_travel_monthly, common_grid, method = "sum")
+cu_aegypti_monthly <- resample(cu_aegypti_monthly, common_grid, method = "near")
+
+###############################################################################
+## GET MONTHLY EXPOSURE MAPS
+###############################################################################
+## Dichotomize transmission potential layer - 0 if IndexP <1, 1 otherwise
+indexp_threshold <- 1
+cu_aegypti_2022_bin <- ifel(cu_aegypti_monthly < indexp_threshold, 0, 1)
+
+## Multiply monthly layers
+cuba_exposure_monthly <- cuba_travel_monthly * cu_aegypti_2022_bin
+
+## Replace 0 with NA
+#cuba_exposure_monthly <- subst(cuba_exposure_monthly, 0, NA)
+
+cuba_exposure_monthly_plot <- ggplot() +
+  geom_spatraster(data = cuba_exposure_monthly) +
+  geom_sf(data = cuba, fill = NA, fill = NA, col = "black") +
+  facet_wrap(~lyr) +
+  scale_fill_viridis_c(name = "Estimated exposed travellers (CC)",
+                       #option = "plasma",
+                       na.value = "transparent",
+                       limits = c(0, 15000)) +
+  labs(title = "Exposed travellers per cell\n(2024)") +
+  theme_minimal()
+
+###############################################################################
+## MONTHLY PLOTS
+###############################################################################
+## Transmission potential
+cu_aegypti_monthly_plot <- ggplot() +
+  geom_spatraster(data = cu_aegypti_monthly) +
+  geom_sf(data = cuba, fill = NA, col = "black") +
+  facet_wrap(~lyr) +
+  scale_fill_viridis_c(name = "Ae. aegypti transmission potential\nfor dengue", 
+                       #option = "plasma",
+                       na.value = "transparent") +
+  labs(title = "Index P") +
+  theme_minimal()
+
+cuba_travel_monthly_plot / cuba_exposure_monthly_plot
+
+cu_aegypti_monthly_plot / cuba_exposure_monthly_plot
+
+###############################################################################
+## SUM EXPOSURE ACROSS MONTHLY LAYERS TO GET ANNUALIZED TOTAL
+###############################################################################
+cu_annual_exposure <- sum(cuba_exposure_monthly)
+
+cuba_exposure_annual_plot <- ggplot() +
+  geom_spatraster(data = cu_annual_exposure) +
+  geom_sf(data = cuba, fill = NA, fill = NA, col = "black") +
+  facet_wrap(~lyr) +
+  scale_fill_viridis_c(name = "Estimated exposed travellers (CC)",
+                       #option = "plasma",
+                       na.value = "transparent",
+                       limits = c(0, 15000)) +
+  labs(title = "Exposed travellers per cell\n(2024)") +
+  theme_minimal()
+
+cuba_exposure_annual_plot
+
+# get annual total exposure
+global(cu_annual_exposure, fun = "sum", na.rm = TRUE) |> print()
 
 ###############################################################################
 ## FOR FURTHER DEVELOPMENT...
