@@ -194,6 +194,45 @@ cuba_travel_monthly_plot / cuba_exposure_monthly_plot
 
 cu_aegypti_monthly_plot / cuba_exposure_monthly_plot
 
+## monthly exposure and monthly travel
+cu_estimates_monthly <- bind_rows(
+  global(cuba_exposure_monthly, "sum", na.rm = TRUE) |> 
+    mutate(
+      month = 1:12,
+      month_name = factor(month, labels = month.abb),
+      indicator = "Exposed"
+    ) |> 
+    rename(value = sum),
+  global(cuba_travel_monthly, "sum", na.rm = TRUE) |> 
+    mutate(
+      month = 1:12,
+      month_name = factor(month, labels = month.abb),
+      indicator = "Travellers"
+    ) |> 
+    rename(value = sum)
+  )
+
+cu_estimates_monthly |> 
+  ggplot(aes(x = month_name, y = value, group = indicator, fill = indicator)) +
+  geom_col(position = "dodge") +
+  scale_y_continuous(labels = scales::comma) +
+  scale_fill_manual(values = scico::scico(2, palette = "lipari", begin = 0.2, end = 0.8, direction = -1)) +
+  labs(
+    title = "Total travel and estimated dengue exposure by month, Canadian Citizens travelling to Cuba, 2024",
+    x = "Month",
+    y = "Number of travellers (Canadian Citizens)",
+    fill = ""
+  ) +
+  guides(
+    fill = guide_legend(reverse = TRUE)
+    ) +
+  theme_minimal() +
+  theme(
+    title = element_text(size = 20),
+    axis.text = element_text(size = 14),
+    legend.text = element_text(size = 12)
+  )
+
 ###############################################################################
 ## SUM EXPOSURE ACROSS MONTHLY LAYERS TO GET ANNUALIZED TOTAL
 ###############################################################################
