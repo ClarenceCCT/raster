@@ -8,6 +8,7 @@
 require(tidyverse)
 require(here)
 require(patchwork)
+require(tidyterra)
 
 ###############################################################################
 ## LOAD FUNCTIONS
@@ -23,6 +24,7 @@ require(patchwork)
 cuba_index <- get_attract_index("Cuba")
 
 cuba <- rnaturalearth::ne_countries(country = "Cuba", returnclass = "sf")
+
 ggplot() +
   geom_sf(data = cuba) +
   geom_spatraster(data = cuba_index) +
